@@ -83,7 +83,8 @@ jobs:
                   android:theme="@style/Theme.RPS">
                   <activity
                       android:name=".MainActivity"
-                      android:exported="true">
+                      android:exported="true"
+                      android:screenOrientation="portrait">
                       <intent-filter>
                           <action android:name="android.intent.action.MAIN" />
                           <category android:name="android.intent.category.LAUNCHER" />
@@ -101,183 +102,12 @@ jobs:
           mkdir -p app/src/main/res/values
           cat > app/src/main/res/values/themes.xml <<'EOF_FILE'
           <resources>
-              <style name="Theme.RPS" parent="android:Theme.Material.Light.NoActionBar" />
+              <style name="Theme.RPS" parent="android:Theme.Material.Light.NoActionBar">
+                  <item name="android:statusBarColor">#1A1040</item>
+                  <item name="android:navigationBarColor">#5B2A86</item>
+                  <item name="android:windowBackground">#3B1E6B</item>
+              </style>
           </resources>
-          EOF_FILE
-          mkdir -p app/src/main/java/com/example/rps
-          cat > app/src/main/java/com/example/rps/MainActivity.kt <<'EOF_FILE'
-          package com.example.rps
-
-          import android.os.Bundle
-          import androidx.activity.ComponentActivity
-          import androidx.activity.compose.setContent
-          import androidx.compose.animation.core.Spring
-          import androidx.compose.animation.core.animateFloatAsState
-          import androidx.compose.animation.core.spring
-          import androidx.compose.foundation.background
-          import androidx.compose.foundation.layout.*
-          import androidx.compose.foundation.shape.RoundedCornerShape
-          import androidx.compose.material3.*
-          import androidx.compose.runtime.*
-          import androidx.compose.runtime.saveable.rememberSaveable
-          import androidx.compose.ui.Alignment
-          import androidx.compose.ui.Modifier
-          import androidx.compose.ui.draw.scale
-          import androidx.compose.ui.graphics.Color
-          import androidx.compose.ui.platform.LocalLayoutDirection
-          import androidx.compose.ui.text.font.FontWeight
-          import androidx.compose.ui.text.style.TextAlign
-          import androidx.compose.ui.unit.LayoutDirection
-          import androidx.compose.ui.unit.dp
-          import androidx.compose.ui.unit.sp
-
-          enum class Move(val emoji: String, val label: String) {
-              ROCK("✊", "אבן"),
-              PAPER("✋", "נייר"),
-              SCISSORS("✌️", "מספריים");
-
-              fun beats(other: Move) =
-                  (this == ROCK && other == SCISSORS) ||
-                  (this == PAPER && other == ROCK) ||
-                  (this == SCISSORS && other == PAPER)
-          }
-
-          enum class Outcome(val text: String, val color: Color) {
-              WIN("ניצחת! 🎉", Color(0xFF2E7D32)),
-              LOSE("הפסדת 😅", Color(0xFFC62828)),
-              DRAW("תיקו 🤝", Color(0xFF616161))
-          }
-
-          class MainActivity : ComponentActivity() {
-              override fun onCreate(savedInstanceState: Bundle?) {
-                  super.onCreate(savedInstanceState)
-                  setContent {
-                      CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
-                          MaterialTheme { Surface(Modifier.fillMaxSize()) { GameScreen() } }
-                      }
-                  }
-              }
-          }
-
-          @Composable
-          fun GameScreen() {
-              var player by rememberSaveable { mutableStateOf<Move?>(null) }
-              var computer by rememberSaveable { mutableStateOf<Move?>(null) }
-              var outcome by rememberSaveable { mutableStateOf<Outcome?>(null) }
-              var wins by rememberSaveable { mutableIntStateOf(0) }
-              var losses by rememberSaveable { mutableIntStateOf(0) }
-              var draws by rememberSaveable { mutableIntStateOf(0) }
-
-              fun play(move: Move) {
-                  val cpu = Move.values().random()
-                  val result = when {
-                      move == cpu -> Outcome.DRAW
-                      move.beats(cpu) -> Outcome.WIN
-                      else -> Outcome.LOSE
-                  }
-                  player = move; computer = cpu; outcome = result
-                  when (result) {
-                      Outcome.WIN -> wins++
-                      Outcome.LOSE -> losses++
-                      Outcome.DRAW -> draws++
-                  }
-              }
-
-              Column(
-                  Modifier.fillMaxSize().padding(24.dp).systemBarsPadding(),
-                  horizontalAlignment = Alignment.CenterHorizontally,
-                  verticalArrangement = Arrangement.SpaceBetween
-              ) {
-                  Text("אבן נייר ומספריים", fontSize = 28.sp, fontWeight = FontWeight.Bold)
-
-                  Row(
-                      Modifier.fillMaxWidth(),
-                      horizontalArrangement = Arrangement.SpaceEvenly
-                  ) {
-                      ScoreBox("ניצחונות", wins, Outcome.WIN.color)
-                      ScoreBox("תיקו", draws, Outcome.DRAW.color)
-                      ScoreBox("הפסדים", losses, Outcome.LOSE.color)
-                  }
-
-                  Row(
-                      Modifier.fillMaxWidth(),
-                      horizontalArrangement = Arrangement.SpaceEvenly,
-                      verticalAlignment = Alignment.CenterVertically
-                  ) {
-                      HandBox("אתה", player)
-                      Text("VS", fontSize = 20.sp, fontWeight = FontWeight.Bold)
-                      HandBox("המחשב", computer)
-                  }
-
-                  Text(
-                      outcome?.text ?: "בחר מהלך!",
-                      fontSize = 26.sp,
-                      fontWeight = FontWeight.Bold,
-                      color = outcome?.color ?: Color.Unspecified,
-                      textAlign = TextAlign.Center
-                  )
-
-                  Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                      Row(
-                          Modifier.fillMaxWidth(),
-                          horizontalArrangement = Arrangement.SpaceEvenly
-                      ) {
-                          Move.values().forEach { m ->
-                              Button(
-                                  onClick = { play(m) },
-                                  shape = RoundedCornerShape(20.dp),
-                                  contentPadding = PaddingValues(12.dp),
-                                  modifier = Modifier.size(width = 100.dp, height = 100.dp)
-                              ) {
-                                  Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                      Text(m.emoji, fontSize = 36.sp)
-                                      Text(m.label, fontSize = 13.sp)
-                                  }
-                              }
-                          }
-                      }
-                      Spacer(Modifier.height(16.dp))
-                      TextButton(onClick = {
-                          wins = 0; losses = 0; draws = 0
-                          player = null; computer = null; outcome = null
-                      }) { Text("אפס משחק") }
-                  }
-              }
-          }
-
-          @Composable
-          fun ScoreBox(label: String, value: Int, color: Color) {
-              Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                  Text("$value", fontSize = 32.sp, fontWeight = FontWeight.Bold, color = color)
-                  Text(label, fontSize = 14.sp)
-              }
-          }
-
-          @Composable
-          fun HandBox(title: String, move: Move?) {
-              // אנימציית קפיצה בכל פעם שהיד משתנה
-              var shown by remember { mutableStateOf(move) }
-              val scale by animateFloatAsState(
-                  targetValue = if (move == shown) 1f else 0.6f,
-                  animationSpec = spring(Spring.DampingRatioMediumBouncy),
-                  finishedListener = { shown = move },
-                  label = "scale"
-              )
-              LaunchedEffect(move) { if (move != shown) shown = move }
-
-              Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                  Text(title, fontSize = 16.sp)
-                  Spacer(Modifier.height(8.dp))
-                  Box(
-                      Modifier
-                          .size(110.dp)
-                          .background(Color(0xFFEDE7F6), RoundedCornerShape(24.dp)),
-                      contentAlignment = Alignment.Center
-                  ) {
-                      Text(move?.emoji ?: "❔", fontSize = 56.sp, modifier = Modifier.scale(scale))
-                  }
-              }
-          }
           EOF_FILE
 
       - uses: gradle/actions/setup-gradle@v4
