@@ -1,0 +1,123 @@
+name: Build APK
+
+on:
+  push:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: Create project files
+        run: |
+          cat > settings.gradle.kts <<'EOF_FILE'
+          pluginManagement {
+              repositories { google(); mavenCentral(); gradlePluginPortal() }
+          }
+          dependencyResolutionManagement {
+              repositories { google(); mavenCentral() }
+          }
+          rootProject.name = "RockPaperScissors"
+          include(":app")
+          EOF_FILE
+          cat > build.gradle.kts <<'EOF_FILE'
+          plugins {
+              id("com.android.application") version "8.5.2" apply false
+              id("org.jetbrains.kotlin.android") version "1.9.24" apply false
+          }
+          EOF_FILE
+          cat > gradle.properties <<'EOF_FILE'
+          org.gradle.jvmargs=-Xmx2048m
+          android.useAndroidX=true
+          kotlin.code.style=official
+          EOF_FILE
+          mkdir -p app
+          cat > app/build.gradle.kts <<'EOF_FILE'
+          plugins {
+              id("com.android.application")
+              id("org.jetbrains.kotlin.android")
+          }
+
+          android {
+              namespace = "com.example.rps"
+              compileSdk = 34
+
+              defaultConfig {
+                  applicationId = "com.example.rps"
+                  minSdk = 24
+                  targetSdk = 34
+                  versionCode = 1
+                  versionName = "1.0"
+              }
+              buildFeatures { compose = true }
+              composeOptions { kotlinCompilerExtensionVersion = "1.5.14" }
+              compileOptions {
+                  sourceCompatibility = JavaVersion.VERSION_17
+                  targetCompatibility = JavaVersion.VERSION_17
+              }
+              kotlinOptions { jvmTarget = "17" }
+          }
+
+          dependencies {
+              implementation(platform("androidx.compose:compose-bom:2024.06.00"))
+              implementation("androidx.core:core-ktx:1.13.1")
+              implementation("androidx.activity:activity-compose:1.9.0")
+              implementation("androidx.compose.ui:ui")
+              implementation("androidx.compose.material3:material3")
+          }
+          EOF_FILE
+          mkdir -p app/src/main
+          cat > app/src/main/AndroidManifest.xml <<'EOF_FILE'
+          <?xml version="1.0" encoding="utf-8"?>
+          <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+              <application
+                  android:label="@string/app_name"
+                  android:supportsRtl="true"
+                  android:theme="@style/Theme.RPS">
+                  <activity
+                      android:name=".MainActivity"
+                      android:exported="true"
+                      android:screenOrientation="portrait">
+                      <intent-filter>
+                          <action android:name="android.intent.action.MAIN" />
+                          <category android:name="android.intent.category.LAUNCHER" />
+                      </intent-filter>
+                  </activity>
+              </application>
+          </manifest>
+          EOF_FILE
+          mkdir -p app/src/main/res/values
+          cat > app/src/main/res/values/strings.xml <<'EOF_FILE'
+          <resources>
+              <string name="app_name">אבן נייר ומספריים</string>
+          </resources>
+          EOF_FILE
+          mkdir -p app/src/main/res/values
+          cat > app/src/main/res/values/themes.xml <<'EOF_FILE'
+          <resources>
+              <style name="Theme.RPS" parent="android:Theme.Material.Light.NoActionBar">
+                  <item name="android:statusBarColor">#1A1040</item>
+                  <item name="android:navigationBarColor">#5B2A86</item>
+                  <item name="android:windowBackground">#3B1E6B</item>
+              </style>
+          </resources>
+          EOF_FILE
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: 8.7
+
+      - name: Build debug APK
+        run: gradle assembleDebug --no-daemon
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: rock-paper-scissors-apk
+          path: app/build/outputs/apk/debug/app-debug.apk
